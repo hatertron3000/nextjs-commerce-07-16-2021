@@ -3,7 +3,7 @@ import getCustomerId from '../../utils/get-customer-id'
 import jwt from 'jsonwebtoken'
 import { uuid } from 'uuidv4'
 
-const fullCheckout = true
+const fullCheckout = false
 
 const checkout: CheckoutEndpoint['handlers']['checkout'] = async ({
   req,
@@ -26,12 +26,16 @@ const checkout: CheckoutEndpoint['handlers']['checkout'] = async ({
   const customerId =
     customerToken && (await getCustomerId({ customerToken, config }))
 
+  let checkoutUrl
+
   //if there is a customer create a jwt token
-  if (!customerId) {
+  // note getCustomerId will return "undefined" as a string if shopper has logged out on checkout but not Next
+  if (!customerId || customerId === "undefined") {
     if (fullCheckout) {
       res.redirect(data.checkout_url)
       return
     }
+    checkoutUrl = data.embedded_checkout_url
   } else {
     const dateCreated = Math.round(new Date().getTime() / 1000)
     const payload = {
@@ -42,15 +46,14 @@ const checkout: CheckoutEndpoint['handlers']['checkout'] = async ({
       store_hash: config.storeHash,
       customer_id: customerId,
       channel_id: config.storeChannelId,
-      redirect_to: data.checkout_url,
+      redirect_to: fullCheckout ? data.checkout_url : data.embedded_checkout_url,
     }
     let token = jwt.sign(payload, config.storeApiClientSecret!, {
       algorithm: 'HS256',
     })
-    let checkouturl = `${config.storeUrl}/login/token/${token}`
-    console.log('checkouturl', checkouturl)
+    checkoutUrl = `${config.storeUrl}/login/token/${token}`
     if (fullCheckout) {
-      res.redirect(checkouturl)
+      res.redirect(checkoutUrl)
       return
     }
   }
@@ -69,7 +72,7 @@ const checkout: CheckoutEndpoint['handlers']['checkout'] = async ({
                checkoutKitLoader.load('checkout-sdk').then(function (service) {
                  service.embedCheckout({
                    containerId: 'checkout',
-                   url: '${data.embedded_checkout_url}'
+                   url: '${checkoutUrl}'
                  });
                });
              }
