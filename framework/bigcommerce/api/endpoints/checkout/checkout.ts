@@ -3,7 +3,8 @@ import getCustomerId from '../../utils/get-customer-id'
 import jwt from 'jsonwebtoken'
 import { uuid } from 'uuidv4'
 
-const fullCheckout = true
+const fullCheckout = process.env.FULL_CHECKOUT
+console.log(fullCheckout)
 
 const checkout: CheckoutEndpoint['handlers']['checkout'] = async ({
   req,
